@@ -23,6 +23,15 @@ const Dashboard = () => {
     pending: 0,
     overdue: 0
   });
+  const [priorityStats, setPriorityStats] = useState([]);
+  const [weeklyStats, setWeeklyStats] = useState({
+    labels: [],
+    data: []
+  });
+  const [productivityScore, setProductivityScore] = useState({
+    score: 0,
+    change: 0
+  });
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -31,21 +40,7 @@ const Dashboard = () => {
         setTasks(data);
         
         // Calculate stats
-        const now = new Date();
-        const completed = data.filter(task => task.status === 'completed').length;
-        const inProgress = data.filter(task => task.status === 'in-progress').length;
-        const pending = data.filter(task => task.status === 'pending').length;
-        const overdue = data.filter(task => {
-          return task.status !== 'completed' && task.dueDate && new Date(task.dueDate) < now;
-        }).length;
-        
-        setStats({
-          total: data.length,
-          completed,
-          inProgress,
-          pending,
-          overdue
-        });
+        calculateStatistics(data);
       } catch (err) {
         setError('Failed to fetch tasks. Please try again.');
         console.error(err);
@@ -56,6 +51,171 @@ const Dashboard = () => {
     
     fetchTasks();
   }, []);
+
+  const calculateStatistics = (taskData) => {
+    if (!taskData || taskData.length === 0) {
+      // Set default empty values for all stats
+      setStats({
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        pending: 0,
+        overdue: 0
+      });
+      setPriorityStats([
+        { priority: 'High', count: 0, percentage: 0 },
+        { priority: 'Medium', count: 0, percentage: 0 },
+        { priority: 'Low', count: 0, percentage: 0 },
+      ]);
+      setWeeklyStats({
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        data: [0, 0, 0, 0, 0, 0, 0]
+      });
+      setProductivityScore({
+        score: 0,
+        change: 0
+      });
+      return;
+    }
+
+    const now = new Date();
+    const completed = taskData.filter(task => task.status === 'completed').length;
+    const inProgress = taskData.filter(task => task.status === 'in-progress').length;
+    const pending = taskData.filter(task => task.status === 'pending').length;
+    const overdue = taskData.filter(task => {
+      return task.status !== 'completed' && task.dueDate && new Date(task.dueDate) < now;
+    }).length;
+    
+    setStats({
+      total: taskData.length,
+      completed,
+      inProgress,
+      pending,
+      overdue
+    });
+
+    // Calculate priority breakdown
+    const highPriority = taskData.filter(task => task.priority === 'high').length;
+    const mediumPriority = taskData.filter(task => task.priority === 'medium').length;
+    const lowPriority = taskData.filter(task => task.priority === 'low').length;
+    
+    setPriorityStats([
+      { 
+        priority: 'High', 
+        count: highPriority, 
+        percentage: taskData.length > 0 ? Math.round((highPriority / taskData.length) * 100) : 0 
+      },
+      { 
+        priority: 'Medium', 
+        count: mediumPriority, 
+        percentage: taskData.length > 0 ? Math.round((mediumPriority / taskData.length) * 100) : 0 
+      },
+      { 
+        priority: 'Low', 
+        count: lowPriority, 
+        percentage: taskData.length > 0 ? Math.round((lowPriority / taskData.length) * 100) : 0 
+      },
+    ]);
+
+    // Calculate weekly completion data
+    const weeklyData = calculateWeeklyCompletion(taskData);
+    setWeeklyStats(weeklyData);
+
+    // Calculate productivity score
+    const prodScore = calculateProductivityScore(taskData);
+    setProductivityScore(prodScore);
+  };
+
+  // Function to calculate weekly task completion
+  const calculateWeeklyCompletion = (taskData) => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const completionByDay = [0, 0, 0, 0, 0, 0, 0];
+    
+    // Get only completed tasks with completion dates (updatedAt)
+    const completedTasks = taskData.filter(task => task.status === 'completed' && task.updatedAt);
+    
+    // Get tasks completed in the last week
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const recentCompletedTasks = completedTasks.filter(task => 
+      new Date(task.updatedAt) >= oneWeekAgo
+    );
+    
+    // Group by day of week
+    recentCompletedTasks.forEach(task => {
+      const completionDate = new Date(task.updatedAt);
+      const dayOfWeek = completionDate.getDay(); // 0 = Sunday, 6 = Saturday
+      completionByDay[dayOfWeek]++;
+    });
+    
+    // Reorder to start with Monday
+    const orderedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const orderedData = [...completionByDay.slice(1), completionByDay[0]];
+    
+    return {
+      labels: orderedDays,
+      data: orderedData
+    };
+  };
+
+  // Function to calculate productivity score
+  const calculateProductivityScore = (taskData) => {
+    // If no tasks, return zeros
+    if (taskData.length === 0) {
+      return { score: 0, change: 0 };
+    }
+    
+    // Base calculation: completed tasks / total tasks
+    const completionRate = taskData.filter(task => task.status === 'completed').length / taskData.length;
+    
+    // Calculate on-time completion rate
+    const onTimeCompletions = taskData.filter(task => {
+      if (task.status !== 'completed' || !task.dueDate || !task.updatedAt) return false;
+      const dueDate = new Date(task.dueDate);
+      const completionDate = new Date(task.updatedAt);
+      return completionDate <= dueDate;
+    }).length;
+    
+    const taskWithDueDates = taskData.filter(task => task.dueDate).length;
+    const onTimeRate = taskWithDueDates > 0 ? onTimeCompletions / taskWithDueDates : 0;
+    
+    // Calculate productivity trend (compare with last week)
+    const now = new Date();
+    const oneWeekAgo = new Date(now);
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const twoWeeksAgo = new Date(now);
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    
+    const tasksCompletedLastWeek = taskData.filter(task => {
+      if (task.status !== 'completed' || !task.updatedAt) return false;
+      const completionDate = new Date(task.updatedAt);
+      return completionDate >= oneWeekAgo && completionDate <= now;
+    }).length;
+    
+    const tasksCompletedPreviousWeek = taskData.filter(task => {
+      if (task.status !== 'completed' || !task.updatedAt) return false;
+      const completionDate = new Date(task.updatedAt);
+      return completionDate >= twoWeeksAgo && completionDate < oneWeekAgo;
+    }).length;
+    
+    // Calculate percentage change
+    let percentageChange = 0;
+    if (tasksCompletedPreviousWeek > 0) {
+      percentageChange = Math.round(((tasksCompletedLastWeek - tasksCompletedPreviousWeek) / tasksCompletedPreviousWeek) * 100);
+    } else if (tasksCompletedLastWeek > 0) {
+      percentageChange = 100; // If there were no tasks before but there are now, 100% increase
+    }
+    
+    // Calculate final score (weighted average)
+    // 60% completion rate, 40% on-time rate
+    const score = Math.round((completionRate * 0.6 + onTimeRate * 0.4) * 100);
+    
+    return {
+      score,
+      change: percentageChange
+    };
+  };
 
   // Chart data for status distribution
   const statusChartData = {
@@ -80,11 +240,11 @@ const Dashboard = () => {
 
   // Chart data for weekly task completion
   const weeklyChartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    labels: weeklyStats.labels,
     datasets: [
       {
         label: 'Tasks Completed',
-        data: [3, 5, 2, 7, 4, 2, 1], // Demo data - would be calculated from actual tasks
+        data: weeklyStats.data,
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
       },
     ],
@@ -104,13 +264,6 @@ const Dashboard = () => {
     },
   };
 
-  // Task priority distribution for demo purposes
-  const priorityDistribution = [
-    { priority: 'High', count: 5, percentage: 25 },
-    { priority: 'Medium', count: 10, percentage: 50 },
-    { priority: 'Low', count: 5, percentage: 25 },
-  ];
-
   // Container animation
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -128,6 +281,14 @@ const Dashboard = () => {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 }
   };
+
+  // Empty state component
+  const EmptyState = ({ message, icon }) => (
+    <div className="flex flex-col items-center justify-center py-10 text-gray-500 dark:text-gray-400">
+      {icon}
+      <p className="mt-2 text-sm">{message}</p>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -244,7 +405,14 @@ const Dashboard = () => {
         >
           <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Status Distribution</h2>
           <div className="h-64">
-            <Pie data={statusChartData} />
+            {stats.total > 0 ? (
+              <Pie data={statusChartData} />
+            ) : (
+              <EmptyState 
+                message="No tasks found. Create tasks to see status distribution." 
+                icon={<FiBarChart2 className="h-10 w-10 opacity-40" />} 
+              />
+            )}
           </div>
         </motion.div>
         
@@ -255,7 +423,14 @@ const Dashboard = () => {
         >
           <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Weekly Progress</h2>
           <div className="h-64">
-            <Bar options={barOptions} data={weeklyChartData} />
+            {weeklyStats.data.some(value => value > 0) ? (
+              <Bar options={barOptions} data={weeklyChartData} />
+            ) : (
+              <EmptyState 
+                message="No completed tasks in the past week." 
+                icon={<FiBarChart2 className="h-10 w-10 opacity-40" />} 
+              />
+            )}
           </div>
         </motion.div>
       </div>
@@ -307,7 +482,7 @@ const Dashboard = () => {
                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                         : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
                     }`}>
-                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                      {task.status.charAt(0).toUpperCase() + task.status.slice(1).replace('-', ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -347,32 +522,39 @@ const Dashboard = () => {
       <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Priority Breakdown</h2>
         
-        <div className="space-y-4">
-          {priorityDistribution.map((item) => (
-            <div key={item.priority} className="relative">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {item.priority} Priority
-                </span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {item.count} tasks ({item.percentage}%)
-                </span>
+        {stats.total > 0 ? (
+          <div className="space-y-4">
+            {priorityStats.map((item) => (
+              <div key={item.priority} className="relative">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {item.priority} Priority
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {item.count} tasks ({item.percentage}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      item.priority === 'High' 
+                        ? 'bg-red-500' 
+                        : item.priority === 'Medium' 
+                        ? 'bg-yellow-500' 
+                        : 'bg-green-500'
+                    }`} 
+                    style={{ width: `${item.percentage || 0}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                <div 
-                  className={`h-2.5 rounded-full ${
-                    item.priority === 'High' 
-                      ? 'bg-red-500' 
-                      : item.priority === 'Medium' 
-                      ? 'bg-yellow-500' 
-                      : 'bg-green-500'
-                  }`} 
-                  style={{ width: `${item.percentage}%` }}
-                ></div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState 
+            message="No tasks found. Create tasks to see priority breakdown." 
+            icon={<FiList className="h-10 w-10 opacity-40" />} 
+          />
+        )}
       </motion.div>
 
       {/* Quick Links */}
@@ -402,11 +584,22 @@ const Dashboard = () => {
         <div className="bg-primary-600 dark:bg-primary-800 rounded-lg shadow-sm p-6 text-white">
           <h3 className="text-lg font-medium">Productivity Score</h3>
           <div className="mt-2 flex items-end justify-between">
-            <span className="text-3xl font-bold">82%</span>
-            <span className="text-primary-200 text-sm flex items-center">
-              <FiArrowUp className="h-4 w-4 mr-1" />
-              7% from last week
-            </span>
+            <span className="text-3xl font-bold">{productivityScore.score}%</span>
+            {productivityScore.score > 0 && (
+              <span className="text-primary-200 text-sm flex items-center">
+                {productivityScore.change >= 0 ? (
+                  <>
+                    <FiArrowUp className="h-4 w-4 mr-1" />
+                    {Math.abs(productivityScore.change)}% from last week
+                  </>
+                ) : (
+                  <>
+                    <FiArrowDown className="h-4 w-4 mr-1" />
+                    {Math.abs(productivityScore.change)}% from last week
+                  </>
+                )}
+              </span>
+            )}
           </div>
         </div>
       </motion.div>

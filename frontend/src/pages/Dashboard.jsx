@@ -1,240 +1,417 @@
 import { useState, useEffect } from 'react';
-import { FiList, FiGrid, FiPieChart } from 'react-icons/fi';
-import API from '../services/api';
-import Layout from '../components/Layout';
-import TaskCard from '../components/TaskCard';
-import NewTaskForm from '../components/NewTaskForm';
-import TaskFilters from '../components/TaskFilters';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  FiPlus, FiList, FiClock, FiCheckCircle, 
+  FiAlertCircle, FiBarChart2, FiArrowUp, FiArrowDown 
+} from 'react-icons/fi';
+import { getAllTasks } from '../services/tasks';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
 
-export default function Dashboard() {
+// Register ChartJS components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
-  const [filters, setFilters] = useState({
-    status: 'all',
-    priority: 'all',
-    searchTerm: ''
-  });
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
     inProgress: 0,
     pending: 0,
-    highPriority: 0
+    overdue: 0
   });
 
   useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const data = await getAllTasks();
+        setTasks(data);
+        
+        // Calculate stats
+        const now = new Date();
+        const completed = data.filter(task => task.status === 'completed').length;
+        const inProgress = data.filter(task => task.status === 'in-progress').length;
+        const pending = data.filter(task => task.status === 'pending').length;
+        const overdue = data.filter(task => {
+          return task.status !== 'completed' && task.dueDate && new Date(task.dueDate) < now;
+        }).length;
+        
+        setStats({
+          total: data.length,
+          completed,
+          inProgress,
+          pending,
+          overdue
+        });
+      } catch (err) {
+        setError('Failed to fetch tasks. Please try again.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchTasks();
   }, []);
 
-  useEffect(() => {
-    calculateStats();
-  }, [tasks]);
+  // Chart data for status distribution
+  const statusChartData = {
+    labels: ['Completed', 'In Progress', 'Pending'],
+    datasets: [
+      {
+        data: [stats.completed, stats.inProgress, stats.pending],
+        backgroundColor: [
+          'rgba(34, 197, 94, 0.8)',  // green
+          'rgba(59, 130, 246, 0.8)', // blue
+          'rgba(107, 114, 128, 0.8)' // gray
+        ],
+        borderColor: [
+          'rgba(34, 197, 94, 1)',
+          'rgba(59, 130, 246, 1)',
+          'rgba(107, 114, 128, 1)'
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const { data } = await API.get('/tasks');
-      setTasks(data);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      setError('Failed to load tasks. Please try again later.');
-    } finally {
-      setLoading(false);
+  // Chart data for weekly task completion
+  const weeklyChartData = {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      {
+        label: 'Tasks Completed',
+        data: [3, 5, 2, 7, 4, 2, 1], // Demo data - would be calculated from actual tasks
+        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+      },
+    ],
+  };
+
+  // Chart options
+  const barOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Weekly Task Completion',
+      },
+    },
+  };
+
+  // Task priority distribution for demo purposes
+  const priorityDistribution = [
+    { priority: 'High', count: 5, percentage: 25 },
+    { priority: 'Medium', count: 10, percentage: 50 },
+    { priority: 'Low', count: 5, percentage: 25 },
+  ];
+
+  // Container animation
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        delayChildren: 0.3,
+        staggerChildren: 0.2 
+      } 
     }
   };
 
-  const calculateStats = () => {
-    const completed = tasks.filter(task => task.status === 'completed').length;
-    const inProgress = tasks.filter(task => task.status === 'in-progress').length;
-    const pending = tasks.filter(task => task.status === 'pending').length;
-    const highPriority = tasks.filter(task => task.priority === 'high').length;
-
-    setStats({
-      total: tasks.length,
-      completed,
-      inProgress,
-      pending,
-      highPriority
-    });
+  // Item animation
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
   };
-
-  const handleCreateTask = async (newTask) => {
-    try {
-      setError('');
-      const { data } = await API.post('/tasks', newTask);
-      setTasks([...tasks, data]);
-    } catch (error) {
-      console.error('Error creating task:', error);
-      setError('Failed to create task. Please try again.');
-    }
-  };
-
-  const handleDeleteTask = async (id) => {
-    try {
-      setError('');
-      await API.delete(`/tasks/${id}`);
-      setTasks(tasks.filter(task => task._id !== id));
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      setError('Failed to delete task. Please try again.');
-    }
-  };
-
-  const handleUpdateTask = (updatedTask) => {
-    setTasks(tasks.map(task => 
-      task._id === updatedTask._id ? updatedTask : task
-    ));
-  };
-
-  const filteredTasks = tasks.filter(task => {
-    // Filter by status
-    if (filters.status !== 'all' && task.status !== filters.status) {
-      return false;
-    }
-    
-    // Filter by priority
-    if (filters.priority !== 'all' && task.priority !== filters.priority) {
-      return false;
-    }
-    
-    // Filter by search term
-    if (filters.searchTerm && !task.title.toLowerCase().includes(filters.searchTerm.toLowerCase()) &&
-        !task.description.toLowerCase().includes(filters.searchTerm.toLowerCase())) {
-      return false;
-    }
-    
-    return true;
-  });
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      </Layout>
+      <div className="h-full flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-4">
+        <FiAlertCircle className="text-red-500 h-12 w-12 mb-4" />
+        <p className="text-red-500 text-lg">{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+        >
+          Try Again
+        </button>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="bg-indigo-600 text-white p-4 rounded-lg mb-6 shadow-lg">
-        <h2 className="text-xl font-bold">Welcome to the new TaskFlow Dashboard!</h2>
-        <p>We've made significant improvements to help you manage your tasks more efficiently.</p>
-      </div>
-      
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Dashboard</h1>
-        <p className="text-gray-600 dark:text-gray-400">Manage your tasks efficiently</p>
-      </div>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      {/* Welcome Section */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Welcome back!</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Here's an overview of your tasks and progress
+            </p>
+          </div>
+          <div className="mt-4 sm:mt-0">
+            <Link 
+              to="/tasks"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              <FiPlus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+              New Task
+            </Link>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* Total Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900 mr-4">
+            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30 mr-4">
               <FiList className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Tasks</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Tasks</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.total}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+        {/* Completed Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900 mr-4">
-              <FiPieChart className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
+            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30 mr-4">
+              <FiCheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.completed}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+        {/* In Progress Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900 mr-4">
-              <FiGrid className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/30 mr-4">
+              <FiClock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">In Progress</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.inProgress}</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+        {/* Overdue Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-red-100 dark:bg-red-900 mr-4">
-              <FiList className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
+            <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30 mr-4">
+              <FiAlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">High Priority</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.highPriority}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Overdue</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.overdue}</p>
             </div>
           </div>
         </div>
+      </motion.div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Task Status Chart */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+        >
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Status Distribution</h2>
+          <div className="h-64">
+            <Pie data={statusChartData} />
+          </div>
+        </motion.div>
+        
+        {/* Weekly Progress Chart */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+        >
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Weekly Progress</h2>
+          <div className="h-64">
+            <Bar options={barOptions} data={weeklyChartData} />
+          </div>
+        </motion.div>
       </div>
 
-      {/* Task Filters */}
-      <TaskFilters filters={filters} setFilters={setFilters} />
-
-      {/* New Task Form */}
-      <NewTaskForm onSubmit={handleCreateTask} />
-
-      {/* Error Display */}
-      {error && (
-        <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900 dark:border-red-800 dark:text-red-300" role="alert">
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-
-      {/* View Mode Selector */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
-          Your Tasks {filteredTasks.length > 0 && `(${filteredTasks.length})`}
-        </h2>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 sm:p-3 min-h-[40px] sm:min-h-[44px] rounded ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
-            title="List view"
+      {/* Recent Tasks Section */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Recent Tasks</h2>
+          <Link 
+            to="/tasks" 
+            className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-500"
           >
-            <FiList className="h-5 w-5 sm:h-6 sm:w-6" />
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 sm:p-3 min-h-[40px] sm:min-h-[44px] rounded ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}
-            title="Grid view"
-          >
-            <FiGrid className="h-5 w-5 sm:h-6 sm:w-6" />
-          </button>
+            View all
+          </Link>
         </div>
-      </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900/50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Task
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Priority
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Due Date
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {tasks.slice(0, 5).map((task) => (
+                <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-gray-900/20">
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">{task.title}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
+                      {task.description || 'No description'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      task.status === 'completed' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                        : task.status === 'in-progress'
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                    }`}>
+                      {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      task.priority === 'high' 
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' 
+                        : task.priority === 'medium'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                    }`}>
+                      {task.priority === 'high' && <FiArrowUp className="h-3 w-3 mr-1" />}
+                      {task.priority === 'low' && <FiArrowDown className="h-3 w-3 mr-1" />}
+                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    {task.dueDate 
+                      ? new Date(task.dueDate).toLocaleDateString() 
+                      : 'No due date'}
+                  </td>
+                </tr>
+              ))}
+              
+              {tasks.length === 0 && (
+                <tr>
+                  <td colSpan="4" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    No tasks found. Create your first task!
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </motion.div>
 
-      {/* Tasks Display */}
-      {filteredTasks.length === 0 ? (
-        <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
-          <p className="text-gray-500 dark:text-gray-400">No tasks found. Create one!</p>
-        </div>
-      ) : (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
-          {filteredTasks.map(task => (
-            <TaskCard 
-              key={task._id} 
-              task={task} 
-              onDelete={handleDeleteTask}
-              onUpdate={handleUpdateTask}
-            />
+      {/* Task Priority Section */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Priority Breakdown</h2>
+        
+        <div className="space-y-4">
+          {priorityDistribution.map((item) => (
+            <div key={item.priority} className="relative">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {item.priority} Priority
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {item.count} tasks ({item.percentage}%)
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                <div 
+                  className={`h-2.5 rounded-full ${
+                    item.priority === 'High' 
+                      ? 'bg-red-500' 
+                      : item.priority === 'Medium' 
+                      ? 'bg-yellow-500' 
+                      : 'bg-green-500'
+                  }`} 
+                  style={{ width: `${item.percentage}%` }}
+                ></div>
+              </div>
+            </div>
           ))}
         </div>
-      )}
-    </Layout>
+      </motion.div>
+
+      {/* Quick Links */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+        <Link
+          to="/tasks"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex items-center justify-between"
+        >
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Task Board</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Manage your tasks</p>
+          </div>
+          <FiList className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600 dark:text-primary-400" />
+        </Link>
+        
+        <Link
+          to="/analytics"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow flex items-center justify-between"
+        >
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Analytics</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">View detailed reports</p>
+          </div>
+          <FiBarChart2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600 dark:text-primary-400" />
+        </Link>
+        
+        <div className="bg-primary-600 dark:bg-primary-800 rounded-lg shadow-sm p-6 text-white">
+          <h3 className="text-lg font-medium">Productivity Score</h3>
+          <div className="mt-2 flex items-end justify-between">
+            <span className="text-3xl font-bold">82%</span>
+            <span className="text-primary-200 text-sm flex items-center">
+              <FiArrowUp className="h-4 w-4 mr-1" />
+              7% from last week
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
-} 
+};
+
+export default Dashboard; 

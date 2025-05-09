@@ -1,523 +1,519 @@
 import { useState, useEffect } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
-import { FiArrowUp, FiArrowDown, FiCheck, FiClock, FiFlag, FiCalendar } from 'react-icons/fi';
-import DashboardHeader from '../components/DashboardHeader';
-import API from '../services/api';
+import { motion } from 'framer-motion';
+import { 
+  FiBarChart2, FiTrendingUp, FiTrendingDown, 
+  FiCheck, FiClock, FiAlertCircle, FiCalendar
+} from 'react-icons/fi';
+import { getAllTasks } from '../services/tasks';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js';
+import { Pie, Bar, Line } from 'react-chartjs-2';
 
 // Register ChartJS components
 ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
+  ArcElement, 
+  Tooltip, 
+  Legend, 
+  CategoryScale, 
+  LinearScale, 
+  BarElement, 
+  Title, 
+  PointElement, 
+  LineElement
 );
 
-export default function Analytics() {
+const Analytics = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [dateRange, setDateRange] = useState('week'); // week, month, year
-  const [stats, setStats] = useState({
+  const [error, setError] = useState(null);
+  const [dateRange, setDateRange] = useState('month'); // 'week', 'month', 'year'
+  
+  // Summary statistics
+  const [summary, setSummary] = useState({
     total: 0,
     completed: 0,
-    pending: 0,
     inProgress: 0,
+    pending: 0,
     overdue: 0,
     completionRate: 0,
-    weeklyTasksCreated: [],
-    weeklyTasksCompleted: [],
-    tasksByPriority: { high: 0, medium: 0, low: 0 },
-    tasksByStatus: { pending: 0, 'in-progress': 0, completed: 0 }
+    averageCompletionTime: 0
   });
-
+  
   useEffect(() => {
     fetchTasks();
   }, []);
-
+  
   useEffect(() => {
     if (tasks.length > 0) {
-      calculateStats();
+      calculateStatistics();
     }
   }, [tasks, dateRange]);
-
+  
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      setError('');
-      const { data } = await API.get('/tasks');
+      const data = await getAllTasks();
       setTasks(data);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-      setError('Failed to load tasks. Please try again later.');
+    } catch (err) {
+      setError('Failed to fetch tasks. Please try again.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
-
-  const calculateStats = () => {
+  
+  const calculateStatistics = () => {
     const now = new Date();
     
-    // Basic counts
-    const completed = tasks.filter(task => task.status === 'completed').length;
-    const pending = tasks.filter(task => task.status === 'pending').length;
-    const inProgress = tasks.filter(task => task.status === 'in-progress').length;
+    // Filter tasks based on date range
+    let filteredTasks = [];
+    if (dateRange === 'week') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      filteredTasks = tasks.filter(task => new Date(task.createdAt) >= oneWeekAgo);
+    } else if (dateRange === 'month') {
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      filteredTasks = tasks.filter(task => new Date(task.createdAt) >= oneMonthAgo);
+    } else {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      filteredTasks = tasks.filter(task => new Date(task.createdAt) >= oneYearAgo);
+    }
     
-    // Calculate overdue tasks
-    const overdue = tasks.filter(task => {
-      if (!task.dueDate || task.status === 'completed') return false;
-      return new Date(task.dueDate) < now;
-    }).length;
+    const completed = filteredTasks.filter(task => task.status === 'completed');
+    const inProgress = filteredTasks.filter(task => task.status === 'in-progress');
+    const pending = filteredTasks.filter(task => task.status === 'pending');
+    const overdue = filteredTasks.filter(task => 
+      task.status !== 'completed' && task.dueDate && new Date(task.dueDate) < now
+    );
     
     // Calculate completion rate
-    const completionRate = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+    const completionRate = filteredTasks.length > 0 
+      ? Math.round((completed.length / filteredTasks.length) * 100) 
+      : 0;
     
-    // Group tasks by priority
-    const tasksByPriority = {
-      high: tasks.filter(task => task.priority === 'high').length,
-      medium: tasks.filter(task => task.priority === 'medium').length,
-      low: tasks.filter(task => task.priority === 'low' || !task.priority).length
-    };
+    // Calculate average completion time (in days)
+    let totalCompletionDays = 0;
+    let tasksWithCompletionTime = 0;
     
-    // Group tasks by status
-    const tasksByStatus = {
-      pending: pending,
-      'in-progress': inProgress,
-      completed: completed
-    };
-    
-    // Time series data calculation based on date range
-    let timeLabels = [];
-    let tasksCreated = [];
-    let tasksCompleted = [];
-    
-    const getDatesInRange = () => {
-      const dates = [];
-      const endDate = new Date();
-      let startDate;
-      
-      if (dateRange === 'week') {
-        startDate = new Date(endDate);
-        startDate.setDate(endDate.getDate() - 7);
+    completed.forEach(task => {
+      if (task.updatedAt && task.createdAt) {
+        const createdDate = new Date(task.createdAt);
+        const completedDate = new Date(task.updatedAt);
+        const timeDiff = completedDate.getTime() - createdDate.getTime();
+        const daysDiff = timeDiff / (1000 * 3600 * 24); // Convert to days
         
-        for (let i = 0; i < 7; i++) {
-          const date = new Date(startDate);
-          date.setDate(startDate.getDate() + i);
-          dates.push(date);
+        if (daysDiff >= 0) {
+          totalCompletionDays += daysDiff;
+          tasksWithCompletionTime++;
         }
-        return dates;
-      } else if (dateRange === 'month') {
-        startDate = new Date(endDate);
-        startDate.setDate(endDate.getDate() - 30);
-        
-        for (let i = 0; i < 10; i++) {
-          const date = new Date(startDate);
-          date.setDate(startDate.getDate() + (i * 3)); // Every 3 days
-          dates.push(date);
-        }
-        return dates;
-      } else if (dateRange === 'year') {
-        startDate = new Date(endDate);
-        startDate.setMonth(endDate.getMonth() - 12);
-        
-        for (let i = 0; i < 12; i++) {
-          const date = new Date(startDate);
-          date.setMonth(startDate.getMonth() + i);
-          dates.push(date);
-        }
-        return dates;
       }
-    };
-    
-    const formatDateLabel = (date) => {
-      if (dateRange === 'week') {
-        return date.toLocaleDateString('en-US', { weekday: 'short' });
-      } else if (dateRange === 'month') {
-        return `${date.getMonth() + 1}/${date.getDate()}`;
-      } else if (dateRange === 'year') {
-        return date.toLocaleDateString('en-US', { month: 'short' });
-      }
-    };
-    
-    const dates = getDatesInRange();
-    timeLabels = dates.map(date => formatDateLabel(date));
-    
-    tasksCreated = dates.map(date => {
-      return tasks.filter(task => {
-        const taskDate = new Date(task.createdAt);
-        if (dateRange === 'week' || dateRange === 'month') {
-          return taskDate.getDate() === date.getDate() && 
-                 taskDate.getMonth() === date.getMonth() &&
-                 taskDate.getFullYear() === date.getFullYear();
-        } else if (dateRange === 'year') {
-          return taskDate.getMonth() === date.getMonth() &&
-                 taskDate.getFullYear() === date.getFullYear();
-        }
-      }).length;
     });
     
-    tasksCompleted = dates.map(date => {
-      return tasks.filter(task => {
-        if (task.status !== 'completed') return false;
-        // We're assuming the completion date is when the status was updated to completed
-        // In a real app, you'd have a separate field for completedAt
-        const taskDate = new Date(task.updatedAt);
-        if (dateRange === 'week' || dateRange === 'month') {
-          return taskDate.getDate() === date.getDate() && 
-                 taskDate.getMonth() === date.getMonth() &&
-                 taskDate.getFullYear() === date.getFullYear();
-        } else if (dateRange === 'year') {
-          return taskDate.getMonth() === date.getMonth() &&
-                 taskDate.getFullYear() === date.getFullYear();
-        }
-      }).length;
-    });
+    const averageCompletionTime = tasksWithCompletionTime > 0 
+      ? Math.round((totalCompletionDays / tasksWithCompletionTime) * 10) / 10 
+      : 0;
     
-    setStats({
-      total: tasks.length,
-      completed,
-      pending,
-      inProgress,
-      overdue,
+    setSummary({
+      total: filteredTasks.length,
+      completed: completed.length,
+      inProgress: inProgress.length,
+      pending: pending.length,
+      overdue: overdue.length,
       completionRate,
-      weeklyTasksCreated: tasksCreated,
-      weeklyTasksCompleted: tasksCompleted,
-      weeklyLabels: timeLabels,
-      tasksByPriority,
-      tasksByStatus
+      averageCompletionTime
     });
   };
   
-  // Chart options
-  const lineChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
-        }
-      },
-      title: {
-        display: false
-      },
-    },
-    scales: {
-      x: {
-        grid: {
-          color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-        },
-        ticks: {
-          color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
-        }
-      },
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: document.documentElement.classList.contains('dark') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-        },
-        ticks: {
-          stepSize: 1,
-          color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
-        }
-      }
-    }
-  };
-  
-  const doughnutChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
-          padding: 20
-        }
-      }
-    },
-    cutout: '65%'
-  };
-  
-  // Chart data
-  const taskProgressData = {
-    labels: stats.weeklyLabels,
+  // Status distribution chart data
+  const statusChartData = {
+    labels: ['Completed', 'In Progress', 'Pending'],
     datasets: [
       {
-        label: 'Tasks Created',
-        data: stats.weeklyTasksCreated,
-        borderColor: 'rgb(79, 70, 229)',
-        backgroundColor: 'rgba(79, 70, 229, 0.5)',
-        tension: 0.3
-      },
-      {
-        label: 'Tasks Completed',
-        data: stats.weeklyTasksCompleted,
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-        tension: 0.3
-      }
-    ]
-  };
-  
-  const tasksByPriorityData = {
-    labels: ['High', 'Medium', 'Low'],
-    datasets: [
-      {
-        data: [
-          stats.tasksByPriority.high,
-          stats.tasksByPriority.medium,
-          stats.tasksByPriority.low
-        ],
+        data: [summary.completed, summary.inProgress, summary.pending],
         backgroundColor: [
-          'rgba(239, 68, 68, 0.7)',
-          'rgba(249, 115, 22, 0.7)',
-          'rgba(34, 197, 94, 0.7)'
+          'rgba(34, 197, 94, 0.7)',  // green
+          'rgba(59, 130, 246, 0.7)', // blue
+          'rgba(107, 114, 128, 0.7)' // gray
+        ],
+        borderColor: [
+          'rgba(34, 197, 94, 1)',
+          'rgba(59, 130, 246, 1)',
+          'rgba(107, 114, 128, 1)'
+        ],
+        borderWidth: 1,
+      },
+    ],
+  };
+  
+  // Priority distribution chart data
+  const priorityDistribution = [
+    { priority: 'High', count: tasks.filter(t => t.priority === 'high').length },
+    { priority: 'Medium', count: tasks.filter(t => t.priority === 'medium').length },
+    { priority: 'Low', count: tasks.filter(t => t.priority === 'low').length },
+  ];
+  
+  const priorityChartData = {
+    labels: priorityDistribution.map(d => d.priority),
+    datasets: [
+      {
+        data: priorityDistribution.map(d => d.count),
+        backgroundColor: [
+          'rgba(239, 68, 68, 0.7)',  // red
+          'rgba(234, 179, 8, 0.7)',  // yellow
+          'rgba(34, 197, 94, 0.7)',  // green
         ],
         borderColor: [
           'rgba(239, 68, 68, 1)',
-          'rgba(249, 115, 22, 1)',
-          'rgba(34, 197, 94, 1)'
+          'rgba(234, 179, 8, 1)',
+          'rgba(34, 197, 94, 1)',
         ],
-        borderWidth: 1
-      }
-    ]
+        borderWidth: 1,
+      },
+    ],
   };
   
-  const tasksByStatusData = {
-    labels: ['Pending', 'In Progress', 'Completed'],
+  // Mock data for weekly task completion
+  const weeklyLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weeklyCompletionData = {
+    labels: weeklyLabels,
     datasets: [
       {
-        data: [
-          stats.tasksByStatus.pending,
-          stats.tasksByStatus['in-progress'],
-          stats.tasksByStatus.completed
-        ],
-        backgroundColor: [
-          'rgba(251, 191, 36, 0.7)',
-          'rgba(59, 130, 246, 0.7)',
-          'rgba(34, 197, 94, 0.7)'
-        ],
-        borderColor: [
-          'rgba(251, 191, 36, 1)',
-          'rgba(59, 130, 246, 1)',
-          'rgba(34, 197, 94, 1)'
-        ],
-        borderWidth: 1
-      }
-    ]
+        label: 'Tasks Completed',
+        data: [3, 5, 2, 7, 4, 2, 1], // Demo data - would be calculated from actual tasks
+        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+      },
+    ],
+  };
+  
+  // Mock data for monthly productivity trend
+  const getLastSixMonths = () => {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(month.toLocaleString('default', { month: 'short' }));
+    }
+    return months;
+  };
+  
+  const productivityTrendData = {
+    labels: getLastSixMonths(),
+    datasets: [
+      {
+        label: 'Tasks Created',
+        data: [12, 19, 15, 17, 22, 24], // Demo data
+        backgroundColor: 'rgba(59, 130, 246, 0.4)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 2,
+        fill: true,
+      },
+      {
+        label: 'Tasks Completed',
+        data: [10, 15, 12, 14, 18, 19], // Demo data
+        backgroundColor: 'rgba(34, 197, 94, 0.4)',
+        borderColor: 'rgba(34, 197, 94, 1)',
+        borderWidth: 2,
+        fill: true,
+      },
+    ],
+  };
+  
+  // Chart options
+  const lineOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      title: {
+        display: true,
+        text: 'Task Completion Trend',
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+      },
+    },
+  };
+  
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        delayChildren: 0.3,
+        staggerChildren: 0.2 
+      } 
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
   };
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <DashboardHeader />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-          </div>
-        </main>
+      <div className="h-full flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-4">
+        <FiAlertCircle className="text-red-500 h-12 w-12 mb-4" />
+        <p className="text-red-500 text-lg">{error}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+        >
+          Try Again
+        </button>
       </div>
     );
   }
   
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <DashboardHeader />
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      {/* Header */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Analytics Dashboard</h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              View detailed analytics about your tasks and productivity
+            </p>
+          </div>
+          
+          <div className="mt-4 sm:mt-0">
+            <div className="inline-flex rounded-md shadow-sm">
+              <button
+                onClick={() => setDateRange('week')}
+                className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
+                  dateRange === 'week'
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setDateRange('month')}
+                className={`px-4 py-2 text-sm font-medium border-t border-b ${
+                  dateRange === 'month'
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                }`}
+              >
+                Month
+              </button>
+              <button
+                onClick={() => setDateRange('year')}
+                className={`px-4 py-2 text-sm font-medium rounded-r-md border ${
+                  dateRange === 'year'
+                    ? 'bg-primary-600 text-white border-primary-600'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                }`}
+              >
+                Year
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Analytics Dashboard</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Track your productivity and task completion trends
-          </p>
-        </div>
-        
-        {error && (
-          <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative dark:bg-red-900 dark:border-red-800 dark:text-red-300" role="alert">
-            <span className="block sm:inline">{error}</span>
-          </div>
-        )}
-        
-        {/* Time Range Selector */}
-        <div className="mb-6 flex justify-end">
-          <div className="inline-flex shadow-sm rounded-md">
-            <button
-              onClick={() => setDateRange('week')}
-              className={`px-4 py-2 text-sm font-medium rounded-l-md ${
-                dateRange === 'week'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setDateRange('month')}
-              className={`px-4 py-2 text-sm font-medium ${
-                dateRange === 'month'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              Month
-            </button>
-            <button
-              onClick={() => setDateRange('year')}
-              className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                dateRange === 'year'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              Year
-            </button>
-          </div>
-        </div>
-        
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center">
-            <div className="rounded-full h-12 w-12 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400">
-              <FiCheck className="h-5 w-5 sm:h-6 sm:w-6" />
+      {/* Summary Stats */}
+      <motion.div 
+        variants={itemVariants}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
+      >
+        {/* Completion Rate */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30 mr-4">
+              <FiCheck className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 dark:text-green-400" />
             </div>
-            <div className="ml-4">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Completion Rate</h2>
-              <div className="flex items-center">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.completionRate}%</p>
-                <span className="ml-2 text-xs font-medium text-green-600 dark:text-green-400 flex items-center">
-                  <FiArrowUp className="h-5 w-5 sm:h-6 sm:w-6 mr-1" /> 12%
-                </span>
-              </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completion Rate</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{summary.completionRate}%</p>
             </div>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center">
-            <div className="rounded-full h-12 w-12 flex items-center justify-center bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
-              <FiClock className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="ml-4">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">In Progress</h2>
-              <div className="flex items-center">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.inProgress}</p>
-                <span className="ml-2 text-xs font-medium text-green-600 dark:text-green-400 flex items-center">
-                  <FiArrowUp className="h-5 w-5 sm:h-6 sm:w-6 mr-1" /> 4%
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center">
-            <div className="rounded-full h-12 w-12 flex items-center justify-center bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400">
-              <FiFlag className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="ml-4">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Overdue</h2>
-              <div className="flex items-center">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.overdue}</p>
-                <span className="ml-2 text-xs font-medium text-red-600 dark:text-red-400 flex items-center">
-                  <FiArrowDown className="h-5 w-5 sm:h-6 sm:w-6 mr-1" /> 2%
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex items-center">
-            <div className="rounded-full h-12 w-12 flex items-center justify-center bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
-              <FiCalendar className="h-5 w-5 sm:h-6 sm:w-6" />
-            </div>
-            <div className="ml-4">
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Tasks</h2>
-              <div className="flex items-center">
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-                <span className="ml-2 text-xs font-medium text-green-600 dark:text-green-400 flex items-center">
-                  <FiArrowUp className="h-5 w-5 sm:h-6 sm:w-6 mr-1" /> 8%
-                </span>
-              </div>
+          <div className="mt-3">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+              <div 
+                className="bg-green-500 h-2.5 rounded-full"
+                style={{ width: `${summary.completionRate}%` }}
+              ></div>
             </div>
           </div>
         </div>
         
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Progress Over Time</h3>
-            <div className="h-80">
-              <Line options={lineChartOptions} data={taskProgressData} />
+        {/* Average Completion Time */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30 mr-4">
+              <FiClock className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Tasks by Priority</h3>
-              <div className="h-64 flex items-center justify-center">
-                <Doughnut options={doughnutChartOptions} data={tasksByPriorityData} />
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Tasks by Status</h3>
-              <div className="h-64 flex items-center justify-center">
-                <Doughnut options={doughnutChartOptions} data={tasksByStatusData} />
-              </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg. Completion Time</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {summary.averageCompletionTime} <span className="text-sm font-normal">days</span>
+              </p>
             </div>
           </div>
         </div>
         
-        {/* Recent Activity */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-8">
-          <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Recent Activity</h3>
-          </div>
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {tasks.slice(0, 5).map((task, index) => (
-              <div key={index} className="px-5 py-4">
-                <div className="flex items-center">
-                  <div className="h-9 w-9 rounded-full bg-indigo-500 flex items-center justify-center text-white text-sm">
-                    JD
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {task.status === 'completed' ? 'Completed' : 'Updated'} task: {task.title}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(task.updatedAt || Date.now()).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      task.status === 'completed' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                        : task.status === 'in-progress'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                    }`}>
-                      {task.status === 'in-progress' ? 'In Progress' : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {/* Tasks In Progress */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/30 mr-4">
+              <FiTrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {summary.inProgress} <span className="text-sm font-normal">tasks</span>
+              </p>
+            </div>
           </div>
         </div>
-      </main>
-    </div>
+        
+        {/* Overdue Tasks */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30 mr-4">
+              <FiAlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-red-600 dark:text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Overdue</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {summary.overdue} <span className="text-sm font-normal">tasks</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      
+      {/* Charts Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Status Distribution Chart */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+        >
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Status Distribution</h2>
+          <div className="h-72">
+            <Pie data={statusChartData} />
+          </div>
+        </motion.div>
+        
+        {/* Priority Distribution Chart */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+        >
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Priority Distribution</h2>
+          <div className="h-72">
+            <Pie data={priorityChartData} />
+          </div>
+        </motion.div>
+      </div>
+      
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Productivity Trend */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+        >
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Productivity Trend</h2>
+          <div className="h-80">
+            <Line options={lineOptions} data={productivityTrendData} />
+          </div>
+        </motion.div>
+        
+        {/* Weekly Task Completion */}
+        <motion.div 
+          variants={itemVariants}
+          className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+        >
+          <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Weekly Task Completion</h2>
+          <div className="h-72">
+            <Bar 
+              options={{
+                responsive: true,
+                plugins: {
+                  legend: {
+                    position: 'top',
+                  },
+                  title: {
+                    display: true,
+                    text: 'Weekly Task Completion',
+                  },
+                },
+              }} 
+              data={weeklyCompletionData} 
+            />
+          </div>
+        </motion.div>
+      </div>
+      
+      {/* Task Distribution */}
+      <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Task Status Breakdown</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { 
+              title: 'Completed Tasks', 
+              count: summary.completed, 
+              percentage: summary.total > 0 ? Math.round((summary.completed / summary.total) * 100) : 0,
+              color: 'bg-green-500' 
+            },
+            { 
+              title: 'In Progress Tasks', 
+              count: summary.inProgress, 
+              percentage: summary.total > 0 ? Math.round((summary.inProgress / summary.total) * 100) : 0,
+              color: 'bg-blue-500' 
+            },
+            { 
+              title: 'Pending Tasks', 
+              count: summary.pending, 
+              percentage: summary.total > 0 ? Math.round((summary.pending / summary.total) * 100) : 0,
+              color: 'bg-gray-500' 
+            }
+          ].map((item, i) => (
+            <div key={i} className="bg-gray-50 dark:bg-gray-900/30 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-md font-medium text-gray-700 dark:text-gray-300">{item.title}</h3>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{item.percentage}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-2">
+                <div 
+                  className={`${item.color} h-2.5 rounded-full`}
+                  style={{ width: `${item.percentage}%` }}
+                ></div>
+              </div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{item.count}</div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
   );
-} 
+};
+
+export default Analytics; 

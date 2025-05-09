@@ -2,142 +2,189 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Dark mode styles */
-.dark {
-  color-scheme: dark;
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: #1f2937;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c2c2c2;
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a0a0a0;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
+@layer base {
+  body {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white;
   }
-  to {
-    opacity: 1;
+
+  /* Focus outline styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
   }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-/* Form focus styles */
-input:focus, 
-textarea:focus, 
-select:focus {
-  outline: 2px solid rgba(99, 102, 241, 0.5);
-  outline-offset: 0px;
-}
-
-/* Button transitions */
-button {
-  transition: all 0.2s ease;
-}
-
-/* Card hover effects */
-.card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer components {
+  /* Button styles */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors;
   }
-  a:hover {
-    color: #747bff;
+
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700;
   }
-  button {
-    background-color: #f9f9f9;
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700;
   }
+
+  /* Card styles */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6;
+  }
+
+  /* Form control styles */
+  .form-input {
+    @apply block w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white transition-colors;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+  }
+
+  .form-select {
+    @apply block w-full mt-1 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white transition-colors;
+  }
+
+  /* Table styles */
+  .table-container {
+    @apply overflow-x-auto;
+  }
+
+  .table {
+    @apply min-w-full divide-y divide-gray-200 dark:divide-gray-700;
+  }
+
+  .table-header {
+    @apply bg-gray-50 dark:bg-gray-900/50;
+  }
+
+  .table-header-cell {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider;
+  }
+
+  .table-body {
+    @apply bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700;
+  }
+
+  .table-row {
+    @apply hover:bg-gray-50 dark:hover:bg-gray-900/20;
+  }
+
+  .table-cell {
+    @apply px-6 py-4 text-sm text-gray-500 dark:text-gray-400;
+  }
+}
+
+/* Custom animations */
+.animate-pulse-slow {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* DatePicker customization */
+.react-datepicker {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-md rounded-md;
+}
+
+.react-datepicker__header {
+  @apply bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700;
+}
+
+.react-datepicker__current-month, 
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  @apply text-gray-900 dark:text-white;
+}
+
+.react-datepicker__day-name, 
+.react-datepicker__day, 
+.react-datepicker__time-name {
+  @apply text-gray-700 dark:text-gray-300;
+}
+
+.react-datepicker__day--selected, 
+.react-datepicker__day--in-selecting-range, 
+.react-datepicker__day--in-range,
+.react-datepicker__month-text--selected,
+.react-datepicker__month-text--in-selecting-range,
+.react-datepicker__month-text--in-range,
+.react-datepicker__quarter-text--selected,
+.react-datepicker__quarter-text--in-selecting-range,
+.react-datepicker__quarter-text--in-range,
+.react-datepicker__year-text--selected,
+.react-datepicker__year-text--in-selecting-range,
+.react-datepicker__year-text--in-range {
+  @apply bg-primary-500 text-white;
+}
+
+.react-datepicker__day--keyboard-selected,
+.react-datepicker__month-text--keyboard-selected,
+.react-datepicker__quarter-text--keyboard-selected,
+.react-datepicker__year-text--keyboard-selected {
+  @apply bg-primary-200 dark:bg-primary-800 text-primary-700 dark:text-primary-300;
+}
+
+.react-datepicker__day:hover,
+.react-datepicker__month-text:hover,
+.react-datepicker__quarter-text:hover,
+.react-datepicker__year-text:hover {
+  @apply bg-gray-100 dark:bg-gray-700;
+}
+
+/* Ensure proper z-index for datepicker in modal */
+.datepicker-container {
+  position: relative;
+  z-index: 60;
+}
+
+.datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+/* Additional dark mode fixes for datepicker */
+.dark .react-datepicker-popper[data-placement^=bottom] .react-datepicker__triangle::before,
+.dark .react-datepicker-popper[data-placement^=bottom] .react-datepicker__triangle::after {
+  border-bottom-color: #1f2937; /* dark:bg-gray-800 */
+}
+
+.dark .react-datepicker-popper[data-placement^=top] .react-datepicker__triangle::before,
+.dark .react-datepicker-popper[data-placement^=top] .react-datepicker__triangle::after {
+  border-top-color: #1f2937; /* dark:bg-gray-800 */
+}
+
+.dark .react-datepicker__day--outside-month {
+  color: #6b7280; /* dark:text-gray-500 */
+}
+
+.dark .react-datepicker__day--disabled {
+  color: #4b5563; /* dark:text-gray-600 */
+}
+
+/* Toast customization */
+.Toastify__toast {
+  @apply rounded-md shadow-md font-sans;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--success {
+  @apply bg-green-600;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--error {
+  @apply bg-red-600;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--warning {
+  @apply bg-yellow-600;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--info {
+  @apply bg-blue-600;
+}
+
+/* Chart customization */
+.chartjs-tooltip {
+  @apply bg-white dark:bg-gray-800 shadow-md rounded-md border border-gray-200 dark:border-gray-700 p-2 text-sm text-gray-700 dark:text-gray-300;
 }

@@ -13,6 +13,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import TaskBoard from './pages/TaskBoard';
 import Analytics from './pages/Analytics';
+import Profile from './pages/Profile';
 import LandingPage from './pages/LandingPage';
 import NotFound from './pages/NotFound';
 
@@ -79,6 +80,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/tasks" element={<TaskBoard />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
       
       {/* 404 Not Found */}

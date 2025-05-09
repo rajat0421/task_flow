@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { isAuthenticated, logout, login, register } from '../services/auth';
+import { getCurrentUserInfo } from '../services/users';
 import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
@@ -15,7 +16,18 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = () => {
       const authenticated = isAuthenticated();
-      setUser(authenticated ? { authenticated: true } : null);
+      
+      if (authenticated) {
+        // Get user info from token
+        const userInfo = getCurrentUserInfo();
+        setUser({ 
+          authenticated: true,
+          ...userInfo
+        });
+      } else {
+        setUser(null);
+      }
+      
       setLoading(false);
     };
     
@@ -25,8 +37,16 @@ export const AuthProvider = ({ children }) => {
   const handleLogin = async (credentials) => {
     setError(null);
     try {
-      await login(credentials);
-      setUser({ authenticated: true });
+      const data = await login(credentials);
+      
+      // Get user info from token after login
+      const userInfo = getCurrentUserInfo();
+      
+      setUser({ 
+        authenticated: true,
+        ...userInfo
+      });
+      
       navigate('/dashboard');
       return true;
     } catch (err) {
@@ -53,6 +73,15 @@ export const AuthProvider = ({ children }) => {
     navigate('/login');
   };
 
+  const updateUserContext = (userData) => {
+    if (user) {
+      setUser(prevUser => ({
+        ...prevUser,
+        ...userData
+      }));
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -61,6 +90,7 @@ export const AuthProvider = ({ children }) => {
     register: handleRegister,
     logout: handleLogout,
     isAuthenticated: () => !!user,
+    updateUserContext
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

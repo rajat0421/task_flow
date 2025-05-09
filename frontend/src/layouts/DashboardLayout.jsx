@@ -1,17 +1,35 @@
-import { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   FiMenu, FiX, FiHome, FiList, FiBarChart2, 
-  FiUser, FiLogOut, FiMoon, FiSun, FiBell
+  FiUser, FiLogOut, FiMoon, FiSun, FiBell,
+  FiSettings, FiChevronDown
 } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const { logout } = useAuth();
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const dropdownRef = useRef(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setProfileDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
   
   // Check for dark mode preference
   useEffect(() => {
@@ -26,6 +44,30 @@ const DashboardLayout = () => {
     setDarkMode(newMode);
     localStorage.setItem('darkMode', newMode);
     document.documentElement.classList.toggle('dark', newMode);
+  };
+
+  // Handle profile navigation
+  const handleProfileClick = () => {
+    setProfileDropdownOpen(false);
+    navigate('/profile');
+  };
+  
+  // Handle logout
+  const handleLogout = () => {
+    setProfileDropdownOpen(false);
+    logout();
+  };
+  
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (user && user.name) {
+      const nameParts = user.name.split(' ');
+      if (nameParts.length > 1) {
+        return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase();
+      }
+      return user.name[0].toUpperCase();
+    }
+    return 'U';
   };
   
   // Define navigation links
@@ -58,11 +100,38 @@ const DashboardLayout = () => {
                 2
               </span>
             </button>
-            <div className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white">
-              U
-            </div>
+            <button
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white ring-offset-2 ring-offset-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {getUserInitials()}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Profile Dropdown */}
+        {profileDropdownOpen && (
+          <div className="absolute right-4 z-50 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none">
+            <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+              <p className="font-medium">{user?.name || 'User'}</p>
+              <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate">{user?.email || 'user@example.com'}</p>
+            </div>
+            <button
+              onClick={handleProfileClick}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <FiUser className="inline-block mr-2" size={16} />
+              Your Profile
+            </button>
+            <button
+              onClick={handleLogout}
+              className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <FiLogOut className="inline-block mr-2" size={16} />
+              Log Out
+            </button>
+          </div>
+        )}
       </header>
       
       {/* Sidebar (Mobile Drawer or Desktop Sidebar) */}
@@ -120,7 +189,7 @@ const DashboardLayout = () => {
             </div>
             
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
             >
               <FiLogOut className="mr-3" /> Log Out
@@ -138,8 +207,40 @@ const DashboardLayout = () => {
                   2
                 </span>
               </button>
-              <div className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white">
-                U
+              <div ref={dropdownRef} className="relative">
+                <button
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex items-center focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-full"
+                >
+                  <div className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white">
+                    {getUserInitials()}
+                  </div>
+                  <FiChevronDown className={`ml-1 h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {/* Desktop Profile Dropdown */}
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 z-50 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                      <p className="font-medium">{user?.name || 'User'}</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate">{user?.email || 'user@example.com'}</p>
+                    </div>
+                    <button
+                      onClick={handleProfileClick}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FiUser className="inline-block mr-2" size={16} />
+                      Your Profile
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FiLogOut className="inline-block mr-2" size={16} />
+                      Log Out
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

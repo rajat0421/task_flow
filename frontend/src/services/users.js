@@ -29,6 +29,17 @@ export const updateUserProfile = async (userData) => {
   }
 };
 
+// Change user password
+export const changePassword = async (passwordData) => {
+  try {
+    const response = await api.post('/users/change-password', passwordData);
+    return response.data;
+  } catch (error) {
+    console.error('Error changing password:', error);
+    throw error;
+  }
+};
+
 // Get current user information from token
 export const getCurrentUserInfo = () => {
   const token = localStorage.getItem('token');

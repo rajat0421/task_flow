@@ -16,6 +16,7 @@ import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 import LandingPage from './pages/LandingPage';
 import NotFound from './pages/NotFound';
+import OAuthCallback from './pages/OAuthCallback';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -70,6 +71,9 @@ function App() {
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/register" element={user ? <Navigate to="/dashboard" /> : <Register />} />
       </Route>
+      
+      {/* OAuth callback route */}
+      <Route path="/oauth-callback" element={user ? <Navigate to="/dashboard" /> : <OAuthCallback />} />
       
       {/* Protected routes */}
       <Route path="/" element={

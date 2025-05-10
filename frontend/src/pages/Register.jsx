@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiUser, FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import OAuthButtons from '../components/OAuthButtons';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -206,6 +207,9 @@ const Register = () => {
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </div>
+        
+        {/* OAuth sign-up options */}
+        <OAuthButtons labelText="Or sign up with" />
       </form>
 
       <div className="mt-6 text-center text-sm">

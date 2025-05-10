@@ -8,6 +8,7 @@ import {
 import { getAllTasks } from '../services/tasks';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+//import DebugAuthStatus from '../components/DebugAuthStatus';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
@@ -16,6 +17,7 @@ const Dashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     completed: 0,
@@ -33,22 +35,34 @@ const Dashboard = () => {
     change: 0
   });
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const data = await getAllTasks();
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllTasks();
+      
+      // Handle the new response format that includes owned and shared tasks
+      if (data.owned && data.shared) {
+        const allTasks = [...data.owned, ...data.shared];
+        setTasks(allTasks);
+        // Calculate stats
+        calculateStatistics(allTasks);
+      } else {
+        // Fallback for backwards compatibility
         setTasks(data);
-        
         // Calculate stats
         calculateStatistics(data);
-      } catch (err) {
-        setError('Failed to fetch tasks. Please try again.');
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
-    };
-    
+      
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      setError('Failed to fetch tasks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchTasks();
   }, []);
 
@@ -315,11 +329,37 @@ const Dashboard = () => {
 
   return (
     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
       className="space-y-6"
     >
+      {/* Debug section */}
+      <div className="flex justify-end">
+        <button 
+          onClick={() => setShowDebug(!showDebug)} 
+          className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+        >
+          {showDebug ? 'Hide Debug' : 'Show Debug'}
+        </button>
+      </div>
+      
+      {showDebug && <DebugAuthStatus />}
+      
+      {/* Error message with retry button */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+          <FiAlertCircle className="text-red-500 dark:text-red-400 h-8 w-8 mb-2" />
+          <p className="text-red-700 dark:text-red-400 mb-4">{error}</p>
+          <button
+            onClick={fetchTasks}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
       {/* Welcome Section */}
       <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="sm:flex sm:items-center sm:justify-between">

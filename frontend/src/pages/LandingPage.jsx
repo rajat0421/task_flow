@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiArrowRight, FiCheckCircle, FiClock, FiCalendar, FiBarChart2, FiUsers } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
+import Navbar from '../components/Navbar';
 
 const LandingPage = () => {
   const { isAuthenticated } = useAuth();
@@ -50,55 +51,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Header/Navigation */}
-      <header className="relative bg-white dark:bg-gray-800 shadow">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4 md:justify-start md:space-x-10">
-            <div className="flex justify-start lg:w-0 lg:flex-1">
-              <Link to="/" className="flex items-center">
-                <span className="text-2xl font-bold text-primary-600 dark:text-primary-400">TaskFlow</span>
-              </Link>
-            </div>
-            
-            <nav className="hidden md:flex space-x-10">
-              <a href="#features" className="text-base font-medium text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                Features
-              </a>
-              <a href="#testimonials" className="text-base font-medium text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                Testimonials
-              </a>
-              <a href="#pricing" className="text-base font-medium text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                Pricing
-              </a>
-            </nav>
-            
-            <div className="flex items-center justify-end flex-1 lg:w-0">
-              {isAuthenticated() ? (
-                <Link
-                  to="/dashboard"
-                  className="ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700"
-                >
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    className="whitespace-nowrap text-base font-medium text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
-                  >
-                    Sign in
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="ml-8 whitespace-nowrap inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700"
-                  >
-                    Sign up
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <section className="relative bg-gradient-to-b from-white to-gray-100 dark:from-gray-900 dark:to-gray-800 pt-16 pb-20 sm:pt-24 sm:pb-28 overflow-hidden">
@@ -330,39 +283,9 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="bg-primary-700 dark:bg-primary-900">
-        <div className="container mx-auto px-4 py-12 sm:px-6 lg:py-16 lg:px-8">
-          <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-center">
-            <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-              <span className="block">Ready to dive in?</span>
-              <span className="block text-primary-300">Start using TaskFlow today.</span>
-            </h2>
-            <div className="mt-8 flex lg:mt-0 lg:justify-end">
-              <div className="inline-flex rounded-md shadow">
-                <Link
-                  to="/register"
-                  className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white hover:bg-gray-50"
-                >
-                  Get started now
-                </Link>
-              </div>
-              <div className="ml-3 inline-flex rounded-md shadow">
-                <Link
-                  to="/login"
-                  className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-800 hover:bg-primary-700"
-                >
-                  Sign in
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="bg-gray-50 dark:bg-gray-800">
-        <div className="container mx-auto px-4 py-12 sm:px-6 lg:py-16 lg:px-8">
+      <footer className="bg-gray-50 dark:bg-gray-800 py-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product</h3>

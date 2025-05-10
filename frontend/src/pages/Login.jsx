@@ -1,22 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import OAuthButtons from '../components/OAuthButtons';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, error } = useAuth();
+  const [loginError, setLoginError] = useState(null);
+  const { login, error: contextError } = useAuth();
+  
+  // Update local error state when context error changes
+  useEffect(() => {
+    if (contextError) {
+      setLoginError(contextError);
+    }
+  }, [contextError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError(null);
     
     try {
-      await login({ email, password });
+      // Wait for the login attempt to complete
+      const success = await login({ email, password });
+      
+      // Only reset form if successful login
+      if (success) {
+        setEmail('');
+        setPassword('');
+      }
     } catch (err) {
+      // Set local error message immediately
+      setLoginError(err?.message || 'Login failed. Please try again.');
       console.error('Login failed:', err);
     } finally {
       setLoading(false);
@@ -37,10 +56,10 @@ const Login = () => {
         </p>
       </div>
 
-      {error && (
+      {loginError && (
         <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm flex items-start">
           <FiAlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{loginError}</span>
         </div>
       )}
 
@@ -103,6 +122,9 @@ const Login = () => {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </div>
+        
+        {/* OAuth sign-in options */}
+        <OAuthButtons />
       </form>
 
       <div className="mt-6 text-center text-sm">

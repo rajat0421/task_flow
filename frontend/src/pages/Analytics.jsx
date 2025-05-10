@@ -7,6 +7,7 @@ import {
 import { getAllTasks } from '../services/tasks';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js';
 import { Pie, Bar, Line } from 'react-chartjs-2';
+//import DebugAuthStatus from '../components/DebugAuthStatus';
 
 // Register ChartJS components
 ChartJS.register(
@@ -26,6 +27,7 @@ const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('month'); // 'week', 'month', 'year'
+  const [showDebug, setShowDebug] = useState(false);
   
   // Summary statistics
   const [summary, setSummary] = useState({
@@ -123,11 +125,38 @@ const Analytics = () => {
     try {
       setLoading(true);
       const data = await getAllTasks();
-      setTasks(data);
-      calculateStatistics(data);
+      
+      // Handle the new response format that includes owned and shared tasks
+      let taskList = [];
+      if (data.owned && data.shared) {
+        // Combine owned and shared tasks into a single list
+        taskList = [...data.owned, ...data.shared];
+        console.log('Analytics: Tasks loaded successfully', { 
+          owned: data.owned.length, 
+          shared: data.shared.length,
+          total: taskList.length
+        });
+      } else {
+        // Fallback for backwards compatibility
+        taskList = data;
+        console.log('Analytics: Using fallback task format');
+      }
+      
+      setTasks(taskList);
+      calculateStatistics(taskList);
+      setError(null);
     } catch (err) {
+      console.error('Analytics: Error fetching tasks:', err);
+      // More detailed error logging
+      if (err.response) {
+        console.error('Error response:', err.response.data);
+        console.error('Status:', err.response.status);
+      } else if (err.request) {
+        console.error('No response received:', err.request);
+      } else {
+        console.error('Error details:', err.message);
+      }
       setError('Failed to fetch tasks. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -404,7 +433,7 @@ const Analytics = () => {
   
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-8 h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
       </div>
     );
@@ -412,16 +441,39 @@ const Analytics = () => {
   
   if (error) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-4">
-        <FiAlertCircle className="text-red-500 h-12 w-12 mb-4" />
-        <p className="text-red-500 text-lg">{error}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-        >
-          Try Again
-        </button>
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="space-y-6"
+      >
+        {/* Debug section */}
+        <div className="flex justify-end">
+          <button 
+            onClick={() => setShowDebug(!showDebug)} 
+            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            {showDebug ? 'Hide Debug' : 'Show Debug'}
+          </button>
+        </div>
+        
+        {showDebug && <DebugAuthStatus />}
+        
+        {/* Error message with retry button */}
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+          <FiAlertCircle className="text-red-500 dark:text-red-400 h-8 w-8 mb-2" />
+          <p className="text-red-700 dark:text-red-400 mb-4">{error}</p>
+          <button
+            onClick={fetchTasks}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Try Again
+          </button>
+        </div>
+        
+        {/* Rest of your Analytics UI */}
+        
+      </motion.div>
     );
   }
   
@@ -432,6 +484,18 @@ const Analytics = () => {
       animate="visible"
       className="space-y-6"
     >
+      {/* Debug section */}
+      <div className="flex justify-end">
+        <button 
+          onClick={() => setShowDebug(!showDebug)} 
+          className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+        >
+          {showDebug ? 'Hide Debug' : 'Show Debug'}
+        </button>
+      </div>
+      
+      {showDebug && <DebugAuthStatus />}
+      
       {/* Header */}
       <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="sm:flex sm:items-center sm:justify-between">

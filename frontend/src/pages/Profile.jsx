@@ -4,6 +4,7 @@ import { FiUser, FiSave, FiAlertCircle } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserProfile, updateUserProfile } from '../services/users';
 import { toast } from 'react-toastify';
+import ChangePasswordForm from '../components/ChangePasswordForm';
 
 const Profile = () => {
   const { user, updateUserContext } = useAuth();
@@ -195,6 +196,10 @@ const Profile = () => {
             </div>
           </div>
         </form>
+      </motion.div>
+      
+      <motion.div variants={itemVariants}>
+        <ChangePasswordForm />
       </motion.div>
       
       <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 shadow-sm rounded-lg p-6">

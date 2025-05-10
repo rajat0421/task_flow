@@ -12,20 +12,35 @@ export const protect = async (req, res, next) => {
       // Get token from header
       token = req.headers.authorization.split(' ')[1];
 
+      if (!token) {
+        return res.status(401).json({ error: 'Not authorized, token is empty' });
+      }
+
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       // Get user from the token
-      req.user = await User.findById(decoded.id).select('-password');
+      const user = await User.findById(decoded.id).select('-password');
+      
+      if (!user) {
+        return res.status(401).json({ error: 'User not found or deleted' });
+      }
 
+      // Attach user to request
+      req.user = user;
       next();
     } catch (error) {
-      console.error(error);
-      res.status(401).json({ error: 'Not authorized, token failed' });
+      console.error('Auth middleware error:', error);
+      
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ error: 'Invalid token' });
+      } else if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expired' });
+      }
+      
+      return res.status(401).json({ error: 'Authentication failed' });
     }
-  }
-
-  if (!token) {
-    res.status(401).json({ error: 'Not authorized, no token' });
+  } else {
+    return res.status(401).json({ error: 'Not authorized, no token provided' });
   }
 }; 

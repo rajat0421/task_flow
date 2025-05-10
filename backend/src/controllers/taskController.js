@@ -3,7 +3,10 @@ import Task from '../models/Task.js';
 // Get all tasks for logged in user
 export const getTasks = async (req, res) => {
   try {
+    // Find tasks for this user
     const tasks = await Task.find({ user: req.user.id });
+    
+    // Return tasks as an array
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -39,9 +42,9 @@ export const getTaskById = async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
     
-    // Check task belongs to user
+    // Check if user owns this task
     if (task.user.toString() !== req.user.id) {
-      return res.status(401).json({ error: 'Not authorized' });
+      return res.status(401).json({ error: 'Not authorized to access this task' });
     }
     
     res.json(task);
@@ -59,11 +62,12 @@ export const updateTask = async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
     
-    // Check task belongs to user
+    // Check if user owns this task
     if (task.user.toString() !== req.user.id) {
-      return res.status(401).json({ error: 'Not authorized' });
+      return res.status(401).json({ error: 'Not authorized to update this task' });
     }
     
+    // Update the task
     task = await Task.findByIdAndUpdate(req.params.id, req.body, { 
       new: true, 
       runValidators: true 
@@ -84,9 +88,9 @@ export const deleteTask = async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
     
-    // Check task belongs to user
+    // Check if user owns this task
     if (task.user.toString() !== req.user.id) {
-      return res.status(401).json({ error: 'Not authorized' });
+      return res.status(401).json({ error: 'Not authorized to delete this task' });
     }
     
     await Task.findByIdAndDelete(req.params.id);

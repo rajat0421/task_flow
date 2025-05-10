@@ -12,6 +12,18 @@ router.route('/')
   .get(getTasks)
   .post(createTask);
 
+// Debug route for checking auth - placed AFTER / route but BEFORE /:id routes
+router.get('/debug', (req, res) => {
+  res.json({
+    message: 'Authentication successful',
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name
+    }
+  });
+});
+
 router.route('/:id')
   .get(getTaskById)
   .put(updateTask)

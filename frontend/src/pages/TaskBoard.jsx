@@ -4,7 +4,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { 
   FiPlus, FiFilter, FiCheckCircle, FiClock, 
   FiClipboard, FiCalendar, FiX, FiArrowUp, 
-  FiArrowDown, FiEdit, FiTrash2 
+  FiArrowDown, FiEdit, FiTrash2, FiAlertCircle
 } from 'react-icons/fi';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -16,6 +16,7 @@ const TaskBoard = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [error, setError] = useState(null);
   
   const [newTask, setNewTask] = useState({
     title: '',
@@ -38,10 +39,22 @@ const TaskBoard = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getAllTasks();
       setTasks(data);
+      console.log('Tasks loaded successfully:', data.length);
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      // More detailed error logging
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        console.error('Status:', error.response.status);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Error details:', error.message);
+      }
+      setError('Failed to load tasks. Please try again.');
       toast.error('Failed to load tasks');
     } finally {
       setLoading(false);
@@ -279,7 +292,21 @@ const TaskBoard = () => {
       initial="hidden"
       animate="visible"
       className="space-y-6"
-    >
+    >      
+      {/* Show error toast with retry button */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+          <FiAlertCircle className="text-red-500 dark:text-red-400 h-8 w-8 mb-2" />
+          <p className="text-red-700 dark:text-red-400 mb-4">{error}</p>
+          <button
+            onClick={fetchTasks}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+      
       {/* Header with filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">

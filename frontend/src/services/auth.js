@@ -3,24 +3,55 @@ import { jwtDecode } from 'jwt-decode';
 
 // Register a new user
 export const register = async (userData) => {
-  const response = await api.post('/users/register', userData);
-  return response.data;
+  try {
+    const response = await api.post('/users/register', userData);
+    return response.data;
+  } catch (error) {
+    console.error('Registration error:', error);
+    // Rethrow with more details if available
+    throw error;
+  }
 };
 
 // Login a user
 export const login = async (credentials) => {
-  const response = await api.post('/users/login', credentials);
-  
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
+  try {
+    const response = await api.post('/users/login', credentials);
+    
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      
+      // Validate token after saving
+      try {
+        const decoded = jwtDecode(response.data.token);
+        const currentTime = Date.now() / 1000;
+        
+        if (decoded.exp < currentTime) {
+          console.error('Token expired immediately after login');
+          localStorage.removeItem('token');
+          throw new Error('Authentication failed - token expired');
+        }
+      } catch (tokenError) {
+        console.error('Token validation error:', tokenError);
+        localStorage.removeItem('token');
+        throw new Error('Invalid authentication token received');
+      }
+    } else {
+      throw new Error('No token received from server');
+    }
+    
+    return response.data;
+  } catch (error) {
+    // Ensure error propagation with proper formatting
+    console.error('Login error:', error);
+    throw error;
   }
-  
-  return response.data;
 };
 
 // Logout a user
 export const logout = () => {
   localStorage.removeItem('token');
+  localStorage.removeItem('redirectPath');
 };
 
 // Check if user is logged in
@@ -34,12 +65,21 @@ export const isAuthenticated = () => {
     
     // Check if token is expired
     if (decoded.exp < currentTime) {
+      console.log('Token expired, logging out');
+      localStorage.removeItem('token');
+      return false;
+    }
+    
+    // Additionally verify token has expected fields
+    if (!decoded.id || !decoded.email) {
+      console.log('Token missing required fields, logging out');
       localStorage.removeItem('token');
       return false;
     }
     
     return true;
   } catch (error) {
+    console.error('Token validation error:', error);
     localStorage.removeItem('token');
     return false;
   }
@@ -54,6 +94,7 @@ export const getCurrentUserId = () => {
     const decoded = jwtDecode(token);
     return decoded.id;
   } catch (error) {
+    console.error('Error getting user ID from token:', error);
     return null;
   }
 }; 

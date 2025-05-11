@@ -8,7 +8,7 @@ passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
-// Deserialize user from session
+// Deserialize user id from session
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);
@@ -25,7 +25,7 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.NODE_ENV === 'production'
-        ? `${process.env.API_URL}/auth/google/callback`
+        ? 'https://taskflow-backend.onrender.com/api/auth/google/callback'
         : 'http://localhost:4000/api/auth/google/callback',
       scope: ['profile', 'email'],
     },
@@ -76,7 +76,7 @@ passport.use(
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.NODE_ENV === 'production'
-        ? `${process.env.API_URL}/auth/github/callback`
+        ? 'https://taskflow-backend.onrender.com/api/auth/github/callback'
         : 'http://localhost:4000/api/auth/github/callback',
       scope: ['user:email'],
     },

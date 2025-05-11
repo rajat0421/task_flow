@@ -2,7 +2,7 @@ import { FcGoogle } from 'react-icons/fc';
 import { FaGithub } from 'react-icons/fa';
 
 const OAuthButtons = ({ labelText = "Or continue with" }) => {
-  // Get the API URL from environment variable
+  // Get the API URL from environment variableeeee
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
   return (

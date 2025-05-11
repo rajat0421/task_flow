@@ -7,7 +7,6 @@ import {
 import { getAllTasks } from '../services/tasks';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js';
 import { Pie, Bar, Line } from 'react-chartjs-2';
-//import DebugAuthStatus from '../components/DebugAuthStatus';
 
 // Register ChartJS components
 ChartJS.register(
@@ -27,7 +26,6 @@ const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dateRange, setDateRange] = useState('month'); // 'week', 'month', 'year'
-  const [showDebug, setShowDebug] = useState(false);
   
   // Summary statistics
   const [summary, setSummary] = useState({
@@ -447,18 +445,6 @@ const Analytics = () => {
         transition={{ duration: 0.5 }}
         className="space-y-6"
       >
-        {/* Debug section */}
-        <div className="flex justify-end">
-          <button 
-            onClick={() => setShowDebug(!showDebug)} 
-            className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-          >
-            {showDebug ? 'Hide Debug' : 'Show Debug'}
-          </button>
-        </div>
-        
-        {showDebug && <DebugAuthStatus />}
-        
         {/* Error message with retry button */}
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex flex-col items-center justify-center text-center">
           <FiAlertCircle className="text-red-500 dark:text-red-400 h-8 w-8 mb-2" />
@@ -484,18 +470,6 @@ const Analytics = () => {
       animate="visible"
       className="space-y-6"
     >
-      {/* Debug section */}
-      <div className="flex justify-end">
-        <button 
-          onClick={() => setShowDebug(!showDebug)} 
-          className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-        >
-          {showDebug ? 'Hide Debug' : 'Show Debug'}
-        </button>
-      </div>
-      
-      {showDebug && <DebugAuthStatus />}
-      
       {/* Header */}
       <motion.div variants={itemVariants} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="sm:flex sm:items-center sm:justify-between">

@@ -25,7 +25,7 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.NODE_ENV === 'production'
-        ? 'https://taskflow-backend.onrender.com/api/auth/google/callback'
+        ? 'https://task-flow-3vxn.onrender.com/api/auth/google/callback'
         : 'http://localhost:4000/api/auth/google/callback',
       scope: ['profile', 'email'],
     },

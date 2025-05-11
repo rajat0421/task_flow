@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { FiLock, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+import { 
+  FiLock, FiAlertCircle, FiCheckCircle, 
+  FiEye, FiEyeOff, FiShield
+} from 'react-icons/fi';
 import { changePassword } from '../services/users';
 import { toast } from 'react-toastify';
 
@@ -12,6 +16,11 @@ const ChangePasswordForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -21,6 +30,13 @@ const ChangePasswordForm = () => {
     if (error) {
       setError(null);
     }
+  };
+
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
   };
 
   const validateForm = () => {
@@ -83,21 +99,38 @@ const ChangePasswordForm = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Change Password</h2>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm"
+    >
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+          <FiShield className="h-6 w-6 text-white" />
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Change Password</h2>
+      </div>
       
       {error && (
-        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm flex items-start">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm flex items-start"
+        >
           <FiAlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
           <span>{error}</span>
-        </div>
+        </motion.div>
       )}
       
       {success && (
-        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 text-sm flex items-start">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg text-green-600 dark:text-green-400 text-sm flex items-start"
+        >
           <FiCheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
           <span>Password updated successfully</span>
-        </div>
+        </motion.div>
       )}
       
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -112,13 +145,20 @@ const ChangePasswordForm = () => {
             <input
               id="currentPassword"
               name="currentPassword"
-              type="password"
+              type={showPasswords.current ? "text" : "password"}
               required
               value={formData.currentPassword}
               onChange={handleChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white transition-colors"
+              className="block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
               placeholder="Enter current password"
             />
+            <button
+              type="button"
+              onClick={() => togglePasswordVisibility('current')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            >
+              {showPasswords.current ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+            </button>
           </div>
         </div>
         
@@ -133,14 +173,21 @@ const ChangePasswordForm = () => {
             <input
               id="newPassword"
               name="newPassword"
-              type="password"
+              type={showPasswords.new ? "text" : "password"}
               required
               minLength={6}
               value={formData.newPassword}
               onChange={handleChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white transition-colors"
+              className="block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
               placeholder="Enter new password"
             />
+            <button
+              type="button"
+              onClick={() => togglePasswordVisibility('new')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            >
+              {showPasswords.new ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+            </button>
           </div>
         </div>
         
@@ -155,13 +202,20 @@ const ChangePasswordForm = () => {
             <input
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
+              type={showPasswords.confirm ? "text" : "password"}
               required
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-700 dark:text-white transition-colors"
+              className="block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-white transition-all duration-200"
               placeholder="Confirm new password"
             />
+            <button
+              type="button"
+              onClick={() => togglePasswordVisibility('confirm')}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+            >
+              {showPasswords.confirm ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+            </button>
           </div>
         </div>
         
@@ -169,13 +223,20 @@ const ChangePasswordForm = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-200"
           >
-            {loading ? 'Updating...' : 'Update Password'}
+            {loading ? (
+              <div className="flex items-center">
+                <div className="w-5 h-5 border-t-2 border-b-2 border-white rounded-full animate-spin mr-2"></div>
+                Updating...
+              </div>
+            ) : (
+              'Update Password'
+            )}
           </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 };
 

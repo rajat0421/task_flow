@@ -11,17 +11,22 @@ import { motion } from 'framer-motion';
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false);
+  const [desktopProfileOpen, setDesktopProfileOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const dropdownRef = useRef(null);
+  const mobileDropdownRef = useRef(null);
+  const desktopDropdownRef = useRef(null);
   
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setProfileDropdownOpen(false);
+      if (mobileDropdownRef.current && !mobileDropdownRef.current.contains(event.target)) {
+        setMobileProfileOpen(false);
+      }
+      if (desktopDropdownRef.current && !desktopDropdownRef.current.contains(event.target)) {
+        setDesktopProfileOpen(false);
       }
     }
     
@@ -29,7 +34,7 @@ const DashboardLayout = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, []);
   
   // Check for dark mode preference
   useEffect(() => {
@@ -48,13 +53,15 @@ const DashboardLayout = () => {
 
   // Handle profile navigation
   const handleProfileClick = () => {
-    setProfileDropdownOpen(false);
+    setMobileProfileOpen(false);
+    setDesktopProfileOpen(false);
     navigate('/profile');
   };
   
   // Handle logout
   const handleLogout = () => {
-    setProfileDropdownOpen(false);
+    setMobileProfileOpen(false);
+    setDesktopProfileOpen(false);
     logout();
   };
   
@@ -100,38 +107,40 @@ const DashboardLayout = () => {
                 2
               </span>
             </button>
-            <button
-              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-              className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white ring-offset-2 ring-offset-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {getUserInitials()}
-            </button>
+            <div ref={mobileDropdownRef} className="relative">
+              <button
+                onClick={() => setMobileProfileOpen(!mobileProfileOpen)}
+                className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white ring-offset-2 ring-offset-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {getUserInitials()}
+              </button>
+
+              {/* Mobile Profile Dropdown */}
+              {mobileProfileOpen && (
+                <div className="absolute right-0 z-50 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
+                    <p className="font-medium">{user?.name || 'User'}</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate">{user?.email || 'user@example.com'}</p>
+                  </div>
+                  <button
+                    onClick={handleProfileClick}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <FiUser className="inline-block mr-2" size={16} />
+                    Your Profile
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <FiLogOut className="inline-block mr-2" size={16} />
+                    Log Out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Mobile Profile Dropdown */}
-        {profileDropdownOpen && (
-          <div className="absolute right-4 z-50 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none">
-            <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
-              <p className="font-medium">{user?.name || 'User'}</p>
-              <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate">{user?.email || 'user@example.com'}</p>
-            </div>
-            <button
-              onClick={handleProfileClick}
-              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <FiUser className="inline-block mr-2" size={16} />
-              Your Profile
-            </button>
-            <button
-              onClick={handleLogout}
-              className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              <FiLogOut className="inline-block mr-2" size={16} />
-              Log Out
-            </button>
-          </div>
-        )}
       </header>
       
       {/* Sidebar (Mobile Drawer or Desktop Sidebar) */}
@@ -207,19 +216,19 @@ const DashboardLayout = () => {
                   2
                 </span>
               </button>
-              <div ref={dropdownRef} className="relative">
+              <div ref={desktopDropdownRef} className="relative">
                 <button
-                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  onClick={() => setDesktopProfileOpen(!desktopProfileOpen)}
                   className="flex items-center focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-full"
                 >
                   <div className="h-8 w-8 bg-primary-500 rounded-full flex items-center justify-center text-white">
                     {getUserInitials()}
                   </div>
-                  <FiChevronDown className={`ml-1 h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform ${profileDropdownOpen ? 'rotate-180' : ''}`} />
+                  <FiChevronDown className={`ml-1 h-4 w-4 text-gray-500 dark:text-gray-400 transition-transform ${desktopProfileOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
                 {/* Desktop Profile Dropdown */}
-                {profileDropdownOpen && (
+                {desktopProfileOpen && (
                   <div className="absolute right-0 z-50 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                       <p className="font-medium">{user?.name || 'User'}</p>

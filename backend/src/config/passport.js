@@ -25,7 +25,7 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: process.env.NODE_ENV === 'production'
-        ? 'https://task-flow-3vxn.onrender.com/api/auth/google/callback'
+        ? `${process.env.API_URL}/auth/google/callback`
         : 'http://localhost:4000/api/auth/google/callback',
       scope: ['profile', 'email'],
     },
@@ -76,7 +76,7 @@ passport.use(
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: process.env.NODE_ENV === 'production'
-        ? 'https://taskflow-backend.onrender.com/api/auth/github/callback'
+        ? `${process.env.API_URL}/auth/github/callback`
         : 'http://localhost:4000/api/auth/github/callback',
       scope: ['user:email'],
     },

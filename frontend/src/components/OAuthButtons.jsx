@@ -32,6 +32,7 @@ const OAuthButtons = ({ labelText = "Or continue with" }) => {
           className="flex items-center justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
         >
           <FaGithub className="h-5 w-5 mr-2" />
+          
           GitHub
         </a>
       </div>

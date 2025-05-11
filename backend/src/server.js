@@ -27,6 +27,15 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Initialize Passport
 app.use(passport.initialize());
 

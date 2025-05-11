@@ -2,6 +2,7 @@ services:
   - type: web
     name: taskflow-backend
     env: node
+    rootDir: backend
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -26,4 +27,14 @@ services:
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
+        sync: false
+
+  - type: web
+    name: taskflow-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run preview
+    envVars:
+      - key: VITE_API_URL
         sync: false 
